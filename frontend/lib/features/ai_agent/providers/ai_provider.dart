@@ -58,4 +58,79 @@ class AiGenerateNotifier extends StateNotifier<AiGenerateState> {
       state = AiGenerateState(error: e.toString());
     }
   }
+
+  void clear() {
+    state = const AiGenerateState();
+  }
+}
+
+/// State for PDF generation.
+final aiPdfStateProvider =
+    StateNotifierProvider<AiPdfNotifier, AiPdfState>((ref) {
+  final repo = ref.watch(aiRepositoryProvider);
+  return AiPdfNotifier(repo);
+});
+
+class AiPdfState {
+  const AiPdfState({
+    this.filePath,
+    this.fileSize,
+    this.status = '',
+    this.cards,
+    this.error,
+  });
+
+  final String? filePath;
+  final int? fileSize;
+  final String status;
+  final List<Map<String, String>>? cards;
+  final String? error;
+}
+
+class AiPdfNotifier extends StateNotifier<AiPdfState> {
+  AiPdfNotifier(this._repo) : super(const AiPdfState());
+
+  final AiRepository _repo;
+
+  void setFile(String path, int size) {
+    state = AiPdfState(filePath: path, fileSize: size);
+  }
+
+  Future<void> startGenerate({
+    required int count,
+    String language = 'ru',
+  }) async {
+    if (state.filePath == null) {
+      state = const AiPdfState(error: 'Выберите файл');
+      return;
+    }
+    state = AiPdfState(
+      filePath: state.filePath,
+      fileSize: state.fileSize,
+      status: 'uploading',
+    );
+    try {
+      final cards = await _repo.generateFromPdf(
+        file: File(state.filePath!),
+        count: count,
+        language: language,
+      );
+      state = AiPdfState(
+        filePath: state.filePath,
+        fileSize: state.fileSize,
+        status: 'done',
+        cards: cards,
+      );
+    } catch (e) {
+      state = AiPdfState(
+        filePath: state.filePath,
+        fileSize: state.fileSize,
+        error: e.toString(),
+      );
+    }
+  }
+
+  void clear() {
+    state = const AiPdfState();
+  }
 }
