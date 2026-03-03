@@ -94,7 +94,7 @@ class _AiPdfScreenState extends ConsumerState<AiPdfScreen> {
     } catch (e) {
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text('Не удалось сохранить: $e')),
+	          SnackBar(content: Text('Не удалось сохранить: $e')),
         );
       }
     } finally {
@@ -102,5 +102,148 @@ class _AiPdfScreenState extends ConsumerState<AiPdfScreen> {
         setState(() => _savingToDeck = false);
       }
     }
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final aiState = ref.watch(aiPdfStateProvider);
+    final decksAsync = ref.watch(decksForAiProvider);
+
+    return Scaffold(
+      appBar: AppBar(
+        title: const Text('Генерация из PDF'),
+        leading: IconButton(
+          icon: const Icon(Icons.arrow_back),
+          onPressed: () => context.pop(),
+        ),
+      ),
+      body: SingleChildScrollView(
+        padding: const EdgeInsets.all(24),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.stretch,
+          children: [
+            InkWell(
+              onTap: _pickFile,
+              child: Container(
+                padding: const EdgeInsets.symmetric(vertical: 32),
+                decoration: BoxDecoration(
+                  border:
+                      Border.all(color: Theme.of(context).colorScheme.outline),
+                  borderRadius: BorderRadius.circular(12),
+                ),
+                child: Column(
+                  children: [
+                    Icon(Icons.picture_as_pdf,
+                        size: 48, color: Theme.of(context).colorScheme.primary),
+                    const SizedBox(height: 8),
+                    Text(
+                      aiState.filePath != null
+                          ? '${aiState.filePath!.split(RegExp(r'[/\\]')).last}\n${(aiState.fileSize! / 1024).toStringAsFixed(1)} KB'
+                          : 'Нажмите чтобы выбрать PDF',
+                      textAlign: TextAlign.center,
+                      style: Theme.of(context).textTheme.bodyMedium,
+                    ),
+                  ],
+                ),
+              ),
+            ),
+            const SizedBox(height: 24),
+            Text('Количество карточек: ${_count.round()}'),
+            Slider(
+              value: _count,
+              min: AppConstants.minAiCards.toDouble(),
+              max: AppConstants.maxAiCards.toDouble(),
+              divisions: AppConstants.maxAiCards - AppConstants.minAiCards,
+              onChanged: (v) => setState(() => _count = v),
+            ),
+            DropdownButtonFormField<String>(
+              value: _language,
+              decoration: const InputDecoration(labelText: 'Язык'),
+              items: const [
+                DropdownMenuItem(value: 'ru', child: Text('Русский')),
+                DropdownMenuItem(value: 'en', child: Text('English')),
+              ],
+              onChanged: (v) => setState(() => _language = v ?? 'ru'),
+            ),
+            const SizedBox(
+              height: 20,
+            ),
+            decksAsync.when(
+              data: (decks) => DropdownButtonFormField<String>(
+                value: _selectedDeckId,
+                decoration:
+                    const InputDecoration(labelText: 'Колода (необязательно)'),
+                items: [
+                  const DropdownMenuItem(
+                      value: null, child: Text('— Новая колода —')),
+                  ...decks.map((d) =>
+                      DropdownMenuItem(value: d.id, child: Text(d.title))),
+                ],
+                onChanged: (v) => setState(() => _selectedDeckId = v),
+              ),
+              loading: () => const LinearProgressIndicator(),
+              error: (_, __) => const SizedBox.shrink(),
+            ),
+            const SizedBox(height: 24),
+            if (aiState.error != null)
+              Padding(
+                padding: const EdgeInsets.only(bottom: 16),
+                child: Text(aiState.error!,
+                    style:
+                        TextStyle(color: Theme.of(context).colorScheme.error)),
+              ),
+            if (aiState.status == 'uploading' &&
+                aiState.cards == null &&
+                aiState.error == null)
+              const GenerationProgressWidget(status: 'Загрузка...'),
+            if (aiState.cards != null) ...[
+              Text('Создано карточек: ${aiState.cards!.length}',
+                  style: Theme.of(context).textTheme.titleMedium),
+              const SizedBox(height: 8),
+              ...aiState.cards!.take(10).map((c) => Card(
+                    child: ListTile(
+                      title: Text((c['question'] ?? '').length > 60
+                          ? '${(c['question'] ?? '').substring(0, 60)}...'
+                          : c['question'] ?? ''),
+                      subtitle: Text((c['answer'] ?? '').length > 40
+                          ? '${(c['answer'] ?? '').substring(0, 40)}...'
+                          : c['answer'] ?? ''),
+                    ),
+                  )),
+              if (aiState.cards!.length > 10)
+                Text('... и ещё ${aiState.cards!.length - 10}'),
+              const SizedBox(height: 16),
+              FilledButton.icon(
+                onPressed: _savingToDeck ? null : _saveToDeck,
+                icon: const Icon(Icons.save),
+                label: Text(
+                    _savingToDeck ? 'Сохранение...' : 'Сохранить в колоду'),
+              ),
+            ],
+            if (aiState.cards == null)
+              FilledButton(
+                style: FilledButton.styleFrom(
+                  minimumSize:
+                      const Size.fromHeight(50), // увеличивает ТОЛЬКО высоту
+                ),
+                onPressed:
+                    (aiState.status == 'uploading' || aiState.filePath == null)
+                        ? null
+                        : _generate,
+                child: aiState.status == 'uploading'
+                    ? const SizedBox(
+                        height: 24,
+                        width: 24,
+                        child: CircularProgressIndicator(strokeWidth: 2),
+                      )
+                    : const Text(
+                        'Создать карточки',
+                        style: TextStyle(fontSize: 16),
+                      ),
+              ),
+          ],
+        ),
+      ),
+    );
   }
 }
