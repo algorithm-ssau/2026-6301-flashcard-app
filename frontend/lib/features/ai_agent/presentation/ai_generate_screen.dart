@@ -85,7 +85,7 @@ class _AiGenerateScreenState extends ConsumerState<AiGenerateScreen> {
     } catch (e) {
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text('Не удалось сохранить: $e')),
+	          SnackBar(content: Text('Не удалось сохранить: $e')),
         );
       }
     } finally {
@@ -93,5 +93,144 @@ class _AiGenerateScreenState extends ConsumerState<AiGenerateScreen> {
         setState(() => _savingToDeck = false);
       }
     }
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final aiState = ref.watch(aiGenerateStateProvider);
+    final decksAsync = ref.watch(decksForAiProvider);
+
+    return Scaffold(
+      appBar: AppBar(
+        title: const Text('Генерация по теме'),
+        leading: IconButton(
+          icon: const Icon(Icons.arrow_back),
+          onPressed: () => context.pop(),
+        ),
+      ),
+      body: SingleChildScrollView(
+        padding: const EdgeInsets.all(24),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.stretch,
+          children: [
+            TextField(
+              controller: _topicController,
+              decoration: const InputDecoration(
+                labelText: 'Тема',
+                hintText: 'Например: Квантовая физика',
+              ),
+            ),
+            const SizedBox(height: 16),
+            Text('Количество карточек: ${_count.round()}'),
+            Slider(
+              value: _count,
+              min: AppConstants.minAiCards.toDouble(),
+              max: AppConstants.maxAiCards.toDouble(),
+              divisions: AppConstants.maxAiCards - AppConstants.minAiCards,
+              onChanged: (v) => setState(() => _count = v),
+            ),
+            const SizedBox(height: 8),
+            DropdownButtonFormField<String>(
+              value: _difficulty,
+              decoration: const InputDecoration(labelText: 'Сложность'),
+              items: const [
+                DropdownMenuItem(value: 'beginner', child: Text('Начальный')),
+                DropdownMenuItem(value: 'intermediate', child: Text('Средний')),
+                DropdownMenuItem(value: 'advanced', child: Text('Продвинутый')),
+              ],
+              onChanged: (v) => setState(() => _difficulty = v ?? 'beginner'),
+            ),
+            const SizedBox(height: 20),
+            DropdownButtonFormField<String>(
+              value: _language,
+              decoration: const InputDecoration(labelText: 'Язык'),
+              items: const [
+                DropdownMenuItem(value: 'ru', child: Text('Русский')),
+                DropdownMenuItem(value: 'en', child: Text('English')),
+              ],
+              onChanged: (v) => setState(() => _language = v ?? 'ru'),
+            ),
+            const SizedBox(height: 8),
+            Row(
+              children: [
+                Checkbox(
+                  value: _createNewDeck,
+                  onChanged: (v) => setState(() => _createNewDeck = v ?? true),
+                ),
+                const Text('Создать новую колоду'),
+              ],
+            ),
+            if (!_createNewDeck)
+              decksAsync.when(
+                data: (decks) => DropdownButtonFormField<String>(
+                  value: _selectedDeckId,
+                  decoration: const InputDecoration(labelText: 'Колода'),
+                  items: [
+                    const DropdownMenuItem(
+                        value: null, child: Text('— Выберите —')),
+                    ...decks.map((d) =>
+                        DropdownMenuItem(value: d.id, child: Text(d.title))),
+                  ],
+                  onChanged: (v) => setState(() => _selectedDeckId = v),
+                ),
+                loading: () => const LinearProgressIndicator(),
+                error: (_, __) => const SizedBox.shrink(),
+              ),
+            const SizedBox(height: 24),
+            if (aiState.error != null)
+              Padding(
+                padding: const EdgeInsets.only(bottom: 16),
+                child: Text(aiState.error!,
+                    style:
+                        TextStyle(color: Theme.of(context).colorScheme.error)),
+              ),
+            if (aiState.status == 'starting' &&
+                aiState.cards == null &&
+                aiState.error == null)
+              const GenerationProgressWidget(status: 'Генерация...'),
+            if (aiState.cards != null) ...[
+              Text('Создано карточек: ${aiState.cards!.length}',
+                  style: Theme.of(context).textTheme.titleMedium),
+              const SizedBox(height: 8),
+              ...aiState.cards!.take(10).map((c) => Card(
+                    child: ListTile(
+                      title: Text((c['question'] ?? '').length > 60
+                          ? '${(c['question'] ?? '').substring(0, 60)}...'
+                          : c['question'] ?? ''),
+                      subtitle: Text((c['answer'] ?? '').length > 40
+                          ? '${(c['answer'] ?? '').substring(0, 40)}...'
+                          : c['answer'] ?? ''),
+                    ),
+                  )),
+              if (aiState.cards!.length > 10)
+                Text('... и ещё ${aiState.cards!.length - 10}'),
+              const SizedBox(height: 16),
+              FilledButton.icon(
+                onPressed: _savingToDeck ? null : _saveToDeck,
+                icon: const Icon(Icons.save),
+                label: Text(
+                    _savingToDeck ? 'Сохранение...' : 'Сохранить в колоду'),
+              ),
+            ],
+            if (aiState.cards == null)
+              FilledButton(
+                style: FilledButton.styleFrom(
+                  minimumSize:
+                      const Size.fromHeight(50), // увеличивает ТОЛЬКО высоту
+                ),
+                onPressed: aiState.status == 'starting' ? null : _generate,
+                child: aiState.status == 'starting'
+                    ? const SizedBox(
+                        height: 24,
+                        width: 24,
+                        child: CircularProgressIndicator(strokeWidth: 2),
+                      )
+                    : const Text('Генерировать',
+                        style: TextStyle(fontSize: 16)),
+              ),
+          ],
+        ),
+      ),
+    );
   }
 }
