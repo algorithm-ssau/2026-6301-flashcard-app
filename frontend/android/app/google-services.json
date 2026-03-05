@@ -1,0 +1,46 @@
+{
+  "project_info": {
+    "project_number": "183350722206",
+    "project_id": "flashgenius-d4ec3",
+    "storage_bucket": "flashgenius-d4ec3.firebasestorage.app"
+  },
+  "client": [
+    {
+      "client_info": {
+        "mobilesdk_app_id": "1:183350722206:android:4d5ef04037232a55fe458f",
+        "android_client_info": {
+          "package_name": "com.example.flashcard_app"
+        }
+      },
+      "oauth_client": [
+        {
+          "client_id": "183350722206-qg5glvq7ov3h7u3le20n8fvufcrmdq6t.apps.googleusercontent.com",
+          "client_type": 3
+        }
+      ],
+      "api_key": [
+        {
+          "current_key": "AIzaSyAlHkKr60DlFy5_Cve-ROrsjCCcDsT9tUo"
+        }
+      ],
+      "services": {
+        "appinvite_service": {
+          "other_platform_oauth_client": [
+            {
+              "client_id": "183350722206-qg5glvq7ov3h7u3le20n8fvufcrmdq6t.apps.googleusercontent.com",
+              "client_type": 3
+            },
+            {
+              "client_id": "183350722206-6hlrdlik7i3j5dj8pvf4eicqfsq1s65i.apps.googleusercontent.com",
+              "client_type": 2,
+              "ios_info": {
+                "bundle_id": "com.example.flashcardApp"
+              }
+            }
+          ]
+        }
+      }
+    }
+  ],
+  "configuration_version": "1"
+}
